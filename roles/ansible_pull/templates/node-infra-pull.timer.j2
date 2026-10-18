@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Run node-infra-pull.service every {{ ansible_pull_interval }}
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec={{ ansible_pull_interval }}
+RandomizedDelaySec=1min
+
+[Install]
+WantedBy=timers.target

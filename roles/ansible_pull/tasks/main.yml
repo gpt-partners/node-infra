@@ -1,0 +1,36 @@
+---
+- name: Install ansible-core and git
+  ansible.builtin.apt:
+    name: [ansible-core, git]
+    state: present
+    cache_valid_time: 86400
+
+- name: Check the env file
+  ansible.builtin.stat:
+    path: "{{ ansible_pull_env_file }}"
+  register: ansible_pull_env
+
+- name: Require the env file
+  ansible.builtin.assert:
+    that: ansible_pull_env.stat.exists
+    fail_msg: "{{ ansible_pull_env_file }} is missing. Create it by hand as described in README.md."
+    quiet: true
+
+- name: Install the ansible-pull service and timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - node-infra-pull.service
+    - node-infra-pull.timer
+  notify: Restart the ansible-pull timer
+
+- name: Enable and start the ansible-pull timer
+  ansible.builtin.systemd_service:
+    name: node-infra-pull.timer
+    enabled: true
+    state: started
+    daemon_reload: true

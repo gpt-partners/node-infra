@@ -1,0 +1,7 @@
+---
+# Written by hand on the node, never in git. See README.md.
+ansible_pull_env_file: /etc/node-infra/pull.env
+ansible_pull_checkout_dir: /var/lib/node-infra/checkout
+ansible_pull_playbook: site.yml
+# systemd time span between two pulls.
+ansible_pull_interval: 15min
