@@ -40,13 +40,15 @@ Planned roles, each in its own pull request: `base` (packages, updates), `k3s`, 
 ansible.cfg
 inventory.yml          localhost only (ansible-pull runs on the node)
 site.yml               entry point for ansible-pull
+pull.env.example       sample for /etc/node-infra/pull.env on the node
 roles/
   ansible_pull/        installs ansible-core and git, the service and the timer
 ```
 
 ## Environment on the node
 
-`/etc/node-infra/pull.env`, written by hand, read by `node-infra-pull.service`:
+`/etc/node-infra/pull.env`, written by hand from [`pull.env.example`](pull.env.example), read by
+`node-infra-pull.service`:
 
 | Variable | Meaning |
 | --- | --- |
@@ -60,12 +62,12 @@ The playbook stops with a clear error if the file is missing.
 ```bash
 apt-get update && apt-get install -y ansible-core git
 
+# Start from the sample in this repo, then check the values.
 install -d -m 0755 /etc/node-infra
-cat > /etc/node-infra/pull.env <<'EOF'
-NODE_INFRA_REPO_URL=https://github.com/gpt-partners/node-infra.git
-NODE_INFRA_BRANCH=main
-EOF
+curl -fsSL https://raw.githubusercontent.com/gpt-partners/node-infra/main/pull.env.example \
+  -o /etc/node-infra/pull.env
 chmod 0644 /etc/node-infra/pull.env
+nano /etc/node-infra/pull.env
 
 set -a; . /etc/node-infra/pull.env; set +a
 ansible-pull --url "$NODE_INFRA_REPO_URL" --checkout "$NODE_INFRA_BRANCH" \
