@@ -1,0 +1,7 @@
+# ansible-pull runs on the node itself, so the only host is localhost.
+# No addresses or hostnames in this public repo; per-node values live in /etc/node-infra/pull.env.
+all:
+  hosts:
+    localhost:
+      ansible_connection: local
+      ansible_python_interpreter: /usr/bin/python3

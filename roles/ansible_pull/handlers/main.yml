@@ -1,0 +1,7 @@
+---
+# Restarting the timer does not stop a pull that is running right now.
+- name: Restart the ansible-pull timer
+  ansible.builtin.systemd_service:
+    name: node-infra-pull.timer
+    state: restarted
+    daemon_reload: true

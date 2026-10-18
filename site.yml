@@ -1,0 +1,8 @@
+---
+# Entry point. The ansible-pull timer on the node runs this playbook from main.
+- name: Configure the node
+  hosts: localhost
+  become: true
+
+  roles:
+    - ansible_pull

@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Apply node-infra with ansible-pull
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists={{ ansible_pull_env_file }}
+
+[Service]
+Type=oneshot
+# Sets NODE_INFRA_REPO_URL and NODE_INFRA_BRANCH.
+EnvironmentFile={{ ansible_pull_env_file }}
+# --only-if-changed: the playbook runs only when the branch has a new commit.
+ExecStart=/usr/bin/ansible-pull --only-if-changed --clean --url ${NODE_INFRA_REPO_URL} --checkout ${NODE_INFRA_BRANCH} --directory {{ ansible_pull_checkout_dir }} {{ ansible_pull_playbook }}
