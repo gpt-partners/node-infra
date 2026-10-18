@@ -1,13 +1,38 @@
 # node-infra
 
-Host setup of the k3s node, applied with Ansible. Everything below Kubernetes lives here.
+Server layer of a small self-hosted container platform on k3s. This repository describes everything
+on the node below Kubernetes and is applied with Ansible.
 
-Only `main` is applied. A merged pull request is the release approval: a systemd timer on the node runs
-`ansible-pull` against `main` and applies `site.yml` when there is a new commit. Nothing outside the node
-needs access to it.
+## Where it fits
 
-This repository is public. No addresses, hostnames or secrets go into it; per-node values live in
-`/etc/node-infra/pull.env` on the node.
+The platform has three layers. Each one has one kind of repository that describes it and one mechanism
+that applies it, and each layer pulls its own state from `main`:
+
+| Layer | Repository | Applied by |
+| --- | --- | --- |
+| Tenant apps | one app repo per project (code, Dockerfile, `deploy/` Helm chart) | Argo CD, after CI pushed an image tagged with the commit SHA |
+| Platform | GitOps repo for the cluster (Argo CD, Traefik, cert-manager, monitoring, CI runners, tenant list) | Argo CD, within minutes of a merge |
+| **Server** | **node-infra** (this repo) | `ansible-pull` timer on the node, within 15 minutes of a merge |
+
+## Principles
+
+- **Only `main` counts.** The node applies nothing but `main`. A merged pull request is the release approval.
+- **Pull, not push.** No CI job gets access to the node. The node fetches and applies changes itself.
+- **Bots open pull requests, humans merge.** Nobody pushes to `main` directly.
+- **No secrets and no per-node values in git.** This repository is public. Addresses, hostnames, keys and
+  tokens stay on the node, e.g. in `/etc/node-infra/pull.env`.
+
+## What belongs here
+
+| Belongs here | Does not belong here |
+| --- | --- |
+| Everything below Kubernetes: OS packages and updates, SSH, VPN and DNS services on the host, k3s installation and configuration, backups, and once the bootstrap of Argo CD so the cluster manages itself afterwards. | Kubernetes manifests of apps or platform services. After the bootstrap, Ansible does not touch anything inside the cluster. |
+
+## Status
+
+Today the playbook installs only the `ansible-pull` timer, so that every later change arrives by merge.
+Planned roles, each in its own pull request: `base` (packages, updates), `k3s`, `wg-easy`, `dnsmasq`,
+`argocd-bootstrap`.
 
 ## Layout
 
