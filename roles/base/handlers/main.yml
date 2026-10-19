@@ -1,0 +1,7 @@
+---
+# Ubuntu may run sshd socket-activated; try-reload-or-restart does nothing if ssh.service is not running,
+# and new connections read the new config anyway. The systemd module's "reloaded" would start it instead.
+- name: Reload sshd
+  ansible.builtin.command:  # noqa: command-instead-of-module
+    cmd: systemctl try-reload-or-restart ssh.service
+  changed_when: true

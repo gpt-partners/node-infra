@@ -6,6 +6,7 @@
 
   roles:
     - ansible_pull
+    - base
     - docker
     # wg-easy creates the bridge that dnsmasq listens on.
     - wg_easy

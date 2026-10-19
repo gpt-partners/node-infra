@@ -1,0 +1,3 @@
+---
+# Server time (UTC unless changed). The node and everything on it is down for a minute or two.
+base_reboot_time: "04:00"
