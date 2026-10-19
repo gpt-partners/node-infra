@@ -1,0 +1,57 @@
+---
+- name: Install unattended-upgrades
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+    cache_valid_time: 86400
+    # unattended-upgrades itself can hold the dpkg lock for a while.
+    lock_timeout: 600
+
+- name: Enable the daily security updates
+  ansible.builtin.copy:
+    src: 20auto-upgrades
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Reboot automatically when an update needs it
+  ansible.builtin.template:
+    src: 52node-infra-unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/52node-infra-unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Allow SSH logins with keys only
+  ansible.builtin.copy:
+    src: 00-node-infra.conf
+    dest: /etc/ssh/sshd_config.d/00-node-infra.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload sshd
+
+# sshd -T needs it; with socket activation it only exists while ssh.service runs.
+- name: Create the sshd privilege separation directory
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# A broken sshd config would lock everyone out after the next restart, so check it before the reload.
+- name: Check the effective sshd config
+  ansible.builtin.command:
+    cmd: /usr/sbin/sshd -T
+  register: base_sshd
+  changed_when: false
+
+- name: Require key-only SSH logins
+  ansible.builtin.assert:
+    that:
+      - "'passwordauthentication no' in base_sshd.stdout_lines"
+      - "'permitrootlogin without-password' in base_sshd.stdout_lines or 'permitrootlogin prohibit-password' in base_sshd.stdout_lines"
+    fail_msg: "sshd still allows password logins; check /etc/ssh/sshd_config and /etc/ssh/sshd_config.d/."
+    quiet: true

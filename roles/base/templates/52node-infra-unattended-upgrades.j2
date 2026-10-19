@@ -1,0 +1,6 @@
+// {{ ansible_managed }}
+// Overrides 50unattended-upgrades: security updates are installed daily and the node reboots
+// by itself when an update needs it (/var/run/reboot-required).
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+Unattended-Upgrade::Automatic-Reboot-Time "{{ base_reboot_time }}";

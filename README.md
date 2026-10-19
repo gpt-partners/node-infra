@@ -30,11 +30,11 @@ that applies it, and each layer pulls its own state from `main`:
 
 ## Status
 
-The playbook manages the `ansible-pull` timer, Docker, wg-easy (WireGuard VPN with web UI, in Docker) and
+The playbook manages the `ansible-pull` timer, security updates with automatic reboots, key-only
+SSH, Docker, wg-easy (WireGuard VPN with web UI, in Docker) and
 dnsmasq (split DNS for VPN clients), k3s and the wg-easy web UI behind Traefik with a Let's
 Encrypt certificate, reachable only through the VPN. Argo CD is installed once and follows the private
-platform repository from there (app of apps). Planned roles, each in its own pull request: `base`
-(packages, updates).
+platform repository from there (app of apps).
 
 ## Layout
 
@@ -46,6 +46,7 @@ pull.env.example       sample for /etc/node-infra/pull.env on the node
 group_vars/all.yml     maps the environment variables to Ansible variables
 roles/
   ansible_pull/        installs ansible-core and git, the service and the timer
+  base/                daily security updates with automatic reboot, SSH with keys only
   docker/              Docker and the compose plugin from the Ubuntu archive
   wg_easy/             compose file in /etc/docker/containers/wg-easy, UI only on the bridge address
   dnsmasq/             split DNS, listens only on the bridge address
@@ -133,6 +134,10 @@ previous file is kept as `docker-compose.yml.<timestamp>~`.
 - Whoever can change `main` gets root on the node. Protect `main` (ruleset: pull request required, no
   force push, no bypass for bots).
 - Stop applying changes: `systemctl disable --now node-infra-pull.timer`.
+- Security updates install daily; when one needs a reboot, the node reboots by itself at 04:00 server
+  time and everything on it is down for a minute or two.
+- SSH accepts keys only. Check `ssh -o PasswordAuthentication=no root@<node> true` works before merging
+  changes to `roles/base`.
 
 ## Local checks
 
