@@ -18,6 +18,25 @@
     mode: "0644"
   notify: Restart dnsmasq
 
+# The bridge address exists only once Docker has started wg-easy, so dnsmasq retries until then
+# (after a reboot it usually starts first).
+- name: Create the dnsmasq drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/dnsmasq.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the dnsmasq systemd drop-in
+  ansible.builtin.copy:
+    src: node-infra.conf
+    dest: /etc/systemd/system/dnsmasq.service.d/node-infra.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart dnsmasq
+
 - name: Install dnsmasq
   ansible.builtin.apt:
     name: dnsmasq
@@ -31,6 +50,7 @@
     name: dnsmasq
     enabled: true
     state: started
+    daemon_reload: true
 
 - name: Apply a changed config before checking
   ansible.builtin.meta: flush_handlers

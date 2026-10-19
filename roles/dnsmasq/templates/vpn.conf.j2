@@ -2,7 +2,9 @@
 # Split DNS for VPN clients: the listed names resolve to the bridge address, everything else is forwarded.
 # Listens only on the bridge address, so it does not collide with systemd-resolved on 127.0.0.53.
 listen-address={{ node_vpn_bridge_ipv4 }}
-bind-dynamic
+# bind-interfaces, not bind-dynamic: the distribution config may already set bind-interfaces, and
+# dnsmasq refuses both. The address must exist at start; the systemd drop-in retries until it does.
+bind-interfaces
 no-hosts
 {% for domain in node_dns_vpn_domains %}
 address=/{{ domain }}/{{ node_vpn_bridge_ipv4 }}
