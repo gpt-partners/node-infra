@@ -17,3 +17,7 @@ node_dns_upstreams: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_DNS_UPSTREAMS'
 # Public name of the wg-easy web UI (served by Traefik, VPN only) and the Let's Encrypt account e-mail.
 node_vpn_ui_host: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_VPN_UI_HOST') }}"
 node_acme_email: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_ACME_EMAIL') }}"
+
+# Platform repository that Argo CD follows (SSH URL) and the file with its read-only deploy key.
+node_argocd_repo_url: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_ARGOCD_REPO_URL') }}"
+node_argocd_deploy_key_file: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_ARGOCD_DEPLOY_KEY_FILE') }}"
