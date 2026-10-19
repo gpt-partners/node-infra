@@ -1,0 +1,43 @@
+---
+- name: Require the dnsmasq values from the environment
+  ansible.builtin.assert:
+    that:
+      - node_vpn_bridge_ipv4 | length > 0
+      - node_dns_vpn_domains | length > 0
+      - node_dns_upstreams | length > 0
+    fail_msg: "Set NODE_INFRA_VPN_BRIDGE_IPV4, NODE_INFRA_DNS_VPN_DOMAINS and NODE_INFRA_DNS_UPSTREAMS in /etc/node-infra/pull.env, see pull.env.example."
+    quiet: true
+
+# Config first: the package's default config binds 0.0.0.0:53, which collides with systemd-resolved.
+- name: Install the dnsmasq split-DNS config
+  ansible.builtin.template:
+    src: vpn.conf.j2
+    dest: /etc/dnsmasq.d/vpn.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart dnsmasq
+
+- name: Install dnsmasq
+  ansible.builtin.apt:
+    name: dnsmasq
+    state: present
+    cache_valid_time: 86400
+    # unattended-upgrades can hold the dpkg lock for a while.
+    lock_timeout: 600
+
+- name: Enable and start dnsmasq
+  ansible.builtin.systemd_service:
+    name: dnsmasq
+    enabled: true
+    state: started
+
+- name: Apply a changed config before checking
+  ansible.builtin.meta: flush_handlers
+
+- name: Check that dnsmasq listens on the bridge address
+  ansible.builtin.wait_for:
+    host: "{{ node_vpn_bridge_ipv4 }}"
+    port: 53
+    timeout: 60
+  when: not ansible_check_mode

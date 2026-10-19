@@ -30,9 +30,9 @@ that applies it, and each layer pulls its own state from `main`:
 
 ## Status
 
-Today the playbook installs only the `ansible-pull` timer, so that every later change arrives by merge.
-Planned roles, each in its own pull request: `base` (packages, updates), `k3s`, `wg-easy`, `dnsmasq`,
-`argocd-bootstrap`.
+The playbook manages the `ansible-pull` timer, wg-easy (WireGuard VPN with web UI, in Docker) and
+dnsmasq (split DNS for VPN clients). Planned roles, each in its own pull request: `base` (packages,
+updates), `k3s`, `argocd-bootstrap`.
 
 ## Layout
 
@@ -41,8 +41,11 @@ ansible.cfg
 inventory.yml          localhost only (ansible-pull runs on the node)
 site.yml               entry point for ansible-pull
 pull.env.example       sample for /etc/node-infra/pull.env on the node
+group_vars/all.yml     maps the environment variables to Ansible variables
 roles/
   ansible_pull/        installs ansible-core and git, the service and the timer
+  wg_easy/             compose file in /etc/docker/containers/wg-easy, UI only on the bridge address
+  dnsmasq/             split DNS, listens only on the bridge address
 ```
 
 ## Environment on the node
@@ -54,15 +57,23 @@ roles/
 | --- | --- |
 | `NODE_INFRA_REPO_URL` | Repository to pull, e.g. `https://github.com/gpt-partners/node-infra.git` |
 | `NODE_INFRA_BRANCH` | Branch to apply, `main` |
+| `NODE_INFRA_VPN_SUBNET_IPV4`, `NODE_INFRA_VPN_SUBNET_IPV6` | Subnets of the wg-easy Docker bridge |
+| `NODE_INFRA_VPN_BRIDGE_IPV4` | Host address on that bridge (first address of the IPv4 subnet). The wg-easy UI and dnsmasq listen only here. |
+| `NODE_INFRA_WG_EASY_IPV4`, `NODE_INFRA_WG_EASY_IPV6` | Fixed addresses of the wg-easy container |
+| `NODE_INFRA_DNS_VPN_DOMAINS` | Names that resolve to the bridge address for VPN clients, comma-separated |
+| `NODE_INFRA_DNS_UPSTREAMS` | Resolvers for everything else, comma-separated |
 
-The playbook stops with a clear error if the file is missing.
+The playbook stops with a clear error if the file or a value is missing. Add new values to the file
+on the node before merging the pull request that needs them.
 
 ## First run (once, by hand, as root on the node)
+
+Needs Docker with the compose plugin on the node (for wg-easy).
 
 ```bash
 apt-get update && apt-get install -y ansible-core git
 
-# Start from the sample in this repo, then check the values.
+# Start from the sample in this repo, then fill in the real values.
 install -d -m 0755 /etc/node-infra
 curl -fsSL https://raw.githubusercontent.com/gpt-partners/node-infra/main/pull.env.example \
   -o /etc/node-infra/pull.env
@@ -82,7 +93,15 @@ From then on the timer takes over (first run 5 minutes after boot, then every 15
 systemctl list-timers node-infra-pull.timer      # next and last run
 journalctl -u node-infra-pull.service -n 50      # output of the last runs
 systemctl start node-infra-pull.service          # pull now instead of waiting
+
+. /etc/node-infra/pull.env
+dig +short @"$NODE_INFRA_VPN_BRIDGE_IPV4" "${NODE_INFRA_DNS_VPN_DOMAINS%%,*}"   # the bridge address
+dig +short @"$NODE_INFRA_VPN_BRIDGE_IPV4" example.com                         # a public address
+ss -ltn | grep 51821                             # only on the bridge address, never 0.0.0.0
 ```
+
+A changed compose file recreates the wg-easy container: the tunnel drops for a few seconds. The
+previous file is kept as `docker-compose.yml.<timestamp>~`.
 
 ## Limits
 

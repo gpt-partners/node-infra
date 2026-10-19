@@ -1,0 +1,15 @@
+---
+# Per-node values come from the environment (systemd EnvironmentFile /etc/node-infra/pull.env).
+# This repository is public: no addresses or hostnames here. See pull.env.example.
+
+# Docker bridge of wg-easy. The host gets the first address of the subnet; dnsmasq and the
+# wg-easy UI listen on it, so node_vpn_bridge_ipv4 must be that first address.
+node_vpn_subnet_ipv4: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_VPN_SUBNET_IPV4') }}"
+node_vpn_subnet_ipv6: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_VPN_SUBNET_IPV6') }}"
+node_vpn_bridge_ipv4: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_VPN_BRIDGE_IPV4') }}"
+node_wg_easy_ipv4: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_WG_EASY_IPV4') }}"
+node_wg_easy_ipv6: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_WG_EASY_IPV6') }}"
+
+# Comma-separated lists.
+node_dns_vpn_domains: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_DNS_VPN_DOMAINS') | split(',') | map('trim') | select | list }}"
+node_dns_upstreams: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_DNS_UPSTREAMS') | split(',') | map('trim') | select | list }}"

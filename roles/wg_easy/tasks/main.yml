@@ -1,0 +1,41 @@
+---
+- name: Require the wg-easy values from the environment
+  ansible.builtin.assert:
+    that:
+      - node_vpn_subnet_ipv4 | length > 0
+      - node_vpn_subnet_ipv6 | length > 0
+      - node_vpn_bridge_ipv4 | length > 0
+      - node_wg_easy_ipv4 | length > 0
+      - node_wg_easy_ipv6 | length > 0
+    fail_msg: "Set the NODE_INFRA_VPN_* and NODE_INFRA_WG_EASY_* values in /etc/node-infra/pull.env, see pull.env.example."
+    quiet: true
+
+# The directory name is the compose project name; keep it, or the volume wg-easy_etc_wireguard
+# with all keys and clients is no longer used.
+- name: Create the wg-easy directory
+  ansible.builtin.file:
+    path: /etc/docker/containers/wg-easy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the wg-easy compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /etc/docker/containers/wg-easy/docker-compose.yml
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Recreate wg-easy
+
+- name: Apply a changed compose file before checking
+  ansible.builtin.meta: flush_handlers
+
+- name: Check that the wg-easy UI listens on the bridge address
+  ansible.builtin.wait_for:
+    host: "{{ node_vpn_bridge_ipv4 }}"
+    port: 51821
+    timeout: 60
+  when: not ansible_check_mode

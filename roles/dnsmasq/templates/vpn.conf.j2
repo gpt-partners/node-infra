@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# Split DNS for VPN clients: the listed names resolve to the bridge address, everything else is forwarded.
+# Listens only on the bridge address, so it does not collide with systemd-resolved on 127.0.0.53.
+listen-address={{ node_vpn_bridge_ipv4 }}
+bind-dynamic
+no-hosts
+{% for domain in node_dns_vpn_domains %}
+address=/{{ domain }}/{{ node_vpn_bridge_ipv4 }}
+{% endfor %}
+no-resolv
+{% for server in node_dns_upstreams %}
+server={{ server }}
+{% endfor %}
