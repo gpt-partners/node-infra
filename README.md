@@ -30,7 +30,7 @@ that applies it, and each layer pulls its own state from `main`:
 
 ## Status
 
-The playbook manages the `ansible-pull` timer, wg-easy (WireGuard VPN with web UI, in Docker) and
+The playbook manages the `ansible-pull` timer, Docker, wg-easy (WireGuard VPN with web UI, in Docker) and
 dnsmasq (split DNS for VPN clients). Planned roles, each in its own pull request: `base` (packages,
 updates), `k3s`, `argocd-bootstrap`.
 
@@ -44,6 +44,7 @@ pull.env.example       sample for /etc/node-infra/pull.env on the node
 group_vars/all.yml     maps the environment variables to Ansible variables
 roles/
   ansible_pull/        installs ansible-core and git, the service and the timer
+  docker/              Docker and the compose plugin from the Ubuntu archive
   wg_easy/             compose file in /etc/docker/containers/wg-easy, UI only on the bridge address
   dnsmasq/             split DNS, listens only on the bridge address
 ```
@@ -67,8 +68,6 @@ The playbook stops with a clear error if the file or a value is missing. Add new
 on the node before merging the pull request that needs them.
 
 ## First run (once, by hand, as root on the node)
-
-Needs Docker with the compose plugin on the node (for wg-easy).
 
 ```bash
 apt-get update && apt-get install -y ansible-core git
