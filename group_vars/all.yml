@@ -13,3 +13,7 @@ node_wg_easy_ipv6: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_WG_EASY_IPV6') 
 # Comma-separated lists.
 node_dns_vpn_domains: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_DNS_VPN_DOMAINS') | split(',') | map('trim') | select | list }}"
 node_dns_upstreams: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_DNS_UPSTREAMS') | split(',') | map('trim') | select | list }}"
+
+# Public name of the wg-easy web UI (served by Traefik, VPN only) and the Let's Encrypt account e-mail.
+node_vpn_ui_host: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_VPN_UI_HOST') }}"
+node_acme_email: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_ACME_EMAIL') }}"
