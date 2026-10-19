@@ -31,7 +31,8 @@ that applies it, and each layer pulls its own state from `main`:
 ## Status
 
 The playbook manages the `ansible-pull` timer, Docker, wg-easy (WireGuard VPN with web UI, in Docker) and
-dnsmasq (split DNS for VPN clients) and k3s. Planned roles, each in its own pull request: `base`
+dnsmasq (split DNS for VPN clients), k3s and the wg-easy web UI behind Traefik with a Let's
+Encrypt certificate, reachable only through the VPN. Planned roles, each in its own pull request: `base`
 (packages, updates), `argocd-bootstrap`.
 
 ## Layout
@@ -48,6 +49,7 @@ roles/
   wg_easy/             compose file in /etc/docker/containers/wg-easy, UI only on the bridge address
   dnsmasq/             split DNS, listens only on the bridge address
   k3s/                 k3s in a pinned version, API also valid for the bridge address
+  vpn_ui/              cert-manager, Let's Encrypt issuer, Traefik route to the wg-easy UI (VPN only)
 ```
 
 ## Environment on the node
@@ -64,6 +66,8 @@ roles/
 | `NODE_INFRA_WG_EASY_IPV4`, `NODE_INFRA_WG_EASY_IPV6` | Fixed addresses of the wg-easy container |
 | `NODE_INFRA_DNS_VPN_DOMAINS` | Names that resolve to the bridge address for VPN clients, comma-separated |
 | `NODE_INFRA_DNS_UPSTREAMS` | Resolvers for everything else, comma-separated |
+| `NODE_INFRA_VPN_UI_HOST` | Name of the wg-easy web UI. Public DNS points it to the node (HTTP-01); VPN clients resolve it to the bridge address. |
+| `NODE_INFRA_ACME_EMAIL` | Let's Encrypt account e-mail |
 
 The playbook stops with a clear error if the file or a value is missing. Add new values to the file
 on the node before merging the pull request that needs them.
@@ -99,6 +103,8 @@ dig +short @"$NODE_INFRA_VPN_BRIDGE_IPV4" "${NODE_INFRA_DNS_VPN_DOMAINS%%,*}"   
 dig +short @"$NODE_INFRA_VPN_BRIDGE_IPV4" example.com                         # a public address
 ss -ltn | grep 51821                             # only on the bridge address, never 0.0.0.0
 k3s kubectl get nodes                            # Ready
+k3s kubectl -n wg-easy get certificate           # wg-easy-tls  READY True
+curl -s -o /dev/null -w '%{http_code}\n' "https://$NODE_INFRA_VPN_UI_HOST/"   # 403 from the internet, 200 or 302 through the VPN
 ```
 
 A changed compose file recreates the wg-easy container: the tunnel drops for a few seconds. The

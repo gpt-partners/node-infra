@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Preserve the client source IP so the VPN-only middleware sees the real caller.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    service:
+      spec:
+        externalTrafficPolicy: Local
