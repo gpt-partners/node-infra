@@ -48,6 +48,8 @@
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
   when: k3s_installed.rc != 0 or k3s_version not in k3s_installed.stdout
+  # Runs only when an install or upgrade is due.
+  changed_when: true
 
 - name: Enable and start k3s
   ansible.builtin.systemd_service:
