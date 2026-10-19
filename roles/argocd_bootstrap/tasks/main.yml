@@ -1,0 +1,74 @@
+---
+- name: Require the Argo CD values from the environment
+  ansible.builtin.assert:
+    that:
+      - node_argocd_repo_url | length > 0
+      - node_argocd_deploy_key_file | length > 0
+    fail_msg: "Set NODE_INFRA_ARGOCD_REPO_URL and NODE_INFRA_ARGOCD_DEPLOY_KEY_FILE in /etc/node-infra/pull.env, see pull.env.example."
+    quiet: true
+
+- name: Check the deploy key file
+  ansible.builtin.stat:
+    path: "{{ node_argocd_deploy_key_file }}"
+  register: argocd_bootstrap_key
+
+- name: Require the deploy key file
+  ansible.builtin.assert:
+    that: argocd_bootstrap_key.stat.exists
+    fail_msg: "{{ node_argocd_deploy_key_file }} is missing. Create the read-only deploy key as described in README.md."
+    quiet: true
+
+# k3s installs the chart by itself from its manifests directory.
+- name: Install the Argo CD chart
+  ansible.builtin.template:
+    src: argocd.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/node-infra-argocd.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Wait until Argo CD is ready
+  ansible.builtin.command:
+    cmd: k3s kubectl -n argocd rollout status {{ item }} --timeout=10s
+  register: argocd_bootstrap_ready
+  until: argocd_bootstrap_ready.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+  loop:
+    - deployment/argocd-repo-server
+    - deployment/argocd-server
+    - statefulset/argocd-application-controller
+  when: not ansible_check_mode
+
+# The private key goes from the file straight into the cluster; it is never written elsewhere.
+- name: Store the repository credentials in the cluster
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      k3s kubectl -n argocd create secret generic repo-platform
+      --from-literal=type=git
+      --from-literal=url={{ node_argocd_repo_url | quote }}
+      --from-file=sshPrivateKey={{ node_argocd_deploy_key_file | quote }}
+      --dry-run=client -o yaml
+      | k3s kubectl label --local -f - argocd.argoproj.io/secret-type=repository -o yaml
+      | k3s kubectl apply -f -
+    executable: /bin/bash
+  register: argocd_bootstrap_repo
+  changed_when: argocd_bootstrap_repo.stdout is search('created|configured')
+  when: not ansible_check_mode
+
+- name: Render the root application
+  ansible.builtin.template:
+    src: root-app.yaml.j2
+    dest: /etc/node-infra/k8s/argocd-root-app.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Apply the root application
+  ansible.builtin.command:
+    cmd: k3s kubectl apply -f /etc/node-infra/k8s/argocd-root-app.yaml
+  register: argocd_bootstrap_root
+  changed_when: argocd_bootstrap_root.stdout is search('created|configured')
+  when: not ansible_check_mode

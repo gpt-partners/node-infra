@@ -12,3 +12,4 @@
     - dnsmasq
     - k3s
     - vpn_ui
+    - argocd_bootstrap

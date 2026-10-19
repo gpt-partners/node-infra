@@ -32,8 +32,9 @@ that applies it, and each layer pulls its own state from `main`:
 
 The playbook manages the `ansible-pull` timer, Docker, wg-easy (WireGuard VPN with web UI, in Docker) and
 dnsmasq (split DNS for VPN clients), k3s and the wg-easy web UI behind Traefik with a Let's
-Encrypt certificate, reachable only through the VPN. Planned roles, each in its own pull request: `base`
-(packages, updates), `argocd-bootstrap`.
+Encrypt certificate, reachable only through the VPN. Argo CD is installed once and follows the private
+platform repository from there (app of apps). Planned roles, each in its own pull request: `base`
+(packages, updates).
 
 ## Layout
 
@@ -50,6 +51,7 @@ roles/
   dnsmasq/             split DNS, listens only on the bridge address
   k3s/                 k3s in a pinned version, API also valid for the bridge address
   vpn_ui/              cert-manager, Let's Encrypt issuer, Traefik route to the wg-easy UI (VPN only)
+  argocd_bootstrap/    Argo CD, repository credentials from a key file on the node, root application
 ```
 
 ## Environment on the node
@@ -68,6 +70,8 @@ roles/
 | `NODE_INFRA_DNS_UPSTREAMS` | Resolvers for everything else, comma-separated |
 | `NODE_INFRA_VPN_UI_HOST` | Name of the wg-easy web UI. Public DNS points it to the node (HTTP-01); VPN clients resolve it to the bridge address. |
 | `NODE_INFRA_ACME_EMAIL` | Let's Encrypt account e-mail |
+| `NODE_INFRA_ARGOCD_REPO_URL` | Platform repository Argo CD follows (SSH URL) |
+| `NODE_INFRA_ARGOCD_DEPLOY_KEY_FILE` | File on the node with the read-only deploy key for that repository |
 
 The playbook stops with a clear error if the file or a value is missing. Add new values to the file
 on the node before merging the pull request that needs them.
@@ -89,6 +93,17 @@ ansible-pull --url "$NODE_INFRA_REPO_URL" --checkout "$NODE_INFRA_BRANCH" \
   --directory /var/lib/node-infra/checkout site.yml
 ```
 
+### Deploy key for Argo CD (once)
+
+```bash
+ssh-keygen -t ed25519 -N '' -C argocd-read-only -f /etc/node-infra/argocd-deploy-key
+chmod 0600 /etc/node-infra/argocd-deploy-key
+cat /etc/node-infra/argocd-deploy-key.pub
+```
+
+Add the public key on GitHub to the platform repository: Settings → Deploy keys → Add deploy key,
+title `argocd (read-only)`, **without** write access. The private key never leaves the node.
+
 From then on the timer takes over (first run 5 minutes after boot, then every 15 minutes).
 
 ## Check
@@ -104,6 +119,7 @@ dig +short @"$NODE_INFRA_VPN_BRIDGE_IPV4" example.com                         # 
 ss -ltn | grep 51821                             # only on the bridge address, never 0.0.0.0
 k3s kubectl get nodes                            # Ready
 k3s kubectl -n wg-easy get certificate           # wg-easy-tls  READY True
+k3s kubectl -n argocd get applications            # root  Synced  Healthy
 curl -s -o /dev/null -w '%{http_code}\n' "https://$NODE_INFRA_VPN_UI_HOST/"   # 403 from the internet, 200 or 302 through the VPN
 ```
 
