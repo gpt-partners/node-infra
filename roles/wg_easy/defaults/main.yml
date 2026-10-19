@@ -1,0 +1,4 @@
+---
+# Major-version tag, as wg-easy publishes it; Renovate proposes the next major as a pull request.
+# renovate: datasource=docker depName=ghcr.io/wg-easy/wg-easy versioning=docker
+wg_easy_version: "15"

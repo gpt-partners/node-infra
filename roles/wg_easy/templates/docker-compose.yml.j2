@@ -10,7 +10,7 @@ services:
       # The UI only allows logins over HTTPS (through Traefik).
       - INSECURE=false
 
-    image: ghcr.io/wg-easy/wg-easy:15
+    image: ghcr.io/wg-easy/wg-easy:{{ wg_easy_version }}
     container_name: wg-easy
     networks:
       wg:
