@@ -4,6 +4,8 @@
     name: [ansible-core, git]
     state: present
     cache_valid_time: 86400
+    # unattended-upgrades can hold the dpkg lock for a while.
+    lock_timeout: 600
 
 - name: Check the env file
   ansible.builtin.stat:

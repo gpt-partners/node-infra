@@ -1,0 +1,46 @@
+# {{ ansible_managed }}
+# The project name comes from the directory (/etc/docker/containers/wg-easy); keep it, or the
+# volume wg-easy_etc_wireguard with all keys and clients is no longer used.
+volumes:
+  etc_wireguard:
+
+services:
+  wg-easy:
+    environment:
+      # The UI only allows logins over HTTPS (through Traefik).
+      - INSECURE=false
+
+    image: ghcr.io/wg-easy/wg-easy:15
+    container_name: wg-easy
+    networks:
+      wg:
+        ipv4_address: {{ node_wg_easy_ipv4 }}
+        ipv6_address: {{ node_wg_easy_ipv6 }}
+    volumes:
+      - etc_wireguard:/etc/wireguard
+      - /lib/modules:/lib/modules:ro
+    ports:
+      - "51820:51820/udp"
+      # UI only on the bridge address: reachable through the tunnel and by Traefik, never publicly.
+      - "{{ node_vpn_bridge_ipv4 }}:51821:51821/tcp"
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv6.conf.all.forwarding=1
+      - net.ipv6.conf.default.forwarding=1
+
+networks:
+  wg:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        # The host gets the first address of this bridge; dnsmasq and Traefik rely on it.
+        - subnet: {{ node_vpn_subnet_ipv4 }}
+        - subnet: {{ node_vpn_subnet_ipv6 }}
