@@ -31,8 +31,8 @@ that applies it, and each layer pulls its own state from `main`:
 ## Status
 
 The playbook manages the `ansible-pull` timer, Docker, wg-easy (WireGuard VPN with web UI, in Docker) and
-dnsmasq (split DNS for VPN clients). Planned roles, each in its own pull request: `base` (packages,
-updates), `k3s`, `argocd-bootstrap`.
+dnsmasq (split DNS for VPN clients) and k3s. Planned roles, each in its own pull request: `base`
+(packages, updates), `argocd-bootstrap`.
 
 ## Layout
 
@@ -47,6 +47,7 @@ roles/
   docker/              Docker and the compose plugin from the Ubuntu archive
   wg_easy/             compose file in /etc/docker/containers/wg-easy, UI only on the bridge address
   dnsmasq/             split DNS, listens only on the bridge address
+  k3s/                 k3s in a pinned version, API also valid for the bridge address
 ```
 
 ## Environment on the node
@@ -97,6 +98,7 @@ systemctl start node-infra-pull.service          # pull now instead of waiting
 dig +short @"$NODE_INFRA_VPN_BRIDGE_IPV4" "${NODE_INFRA_DNS_VPN_DOMAINS%%,*}"   # the bridge address
 dig +short @"$NODE_INFRA_VPN_BRIDGE_IPV4" example.com                         # a public address
 ss -ltn | grep 51821                             # only on the bridge address, never 0.0.0.0
+k3s kubectl get nodes                            # Ready
 ```
 
 A changed compose file recreates the wg-easy container: the tunnel drops for a few seconds. The

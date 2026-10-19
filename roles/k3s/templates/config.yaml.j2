@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# Read by k3s at start. The API server is reached over the VPN on the bridge address
+# (the external firewall does not open 6443).
+write-kubeconfig-mode: "0600"
+tls-san:
+  - {{ node_vpn_bridge_ipv4 }}

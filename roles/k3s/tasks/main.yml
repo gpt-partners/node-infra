@@ -1,0 +1,59 @@
+---
+- name: Require the k3s values from the environment
+  ansible.builtin.assert:
+    that: node_vpn_bridge_ipv4 | length > 0
+    fail_msg: "Set NODE_INFRA_VPN_BRIDGE_IPV4 in /etc/node-infra/pull.env, see pull.env.example."
+    quiet: true
+
+- name: Create the k3s config directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Config before install, so the first start already uses it.
+- name: Install the k3s config
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart k3s
+
+# The install script of the pinned release; it downloads the binary and checks its checksum.
+- name: Download the k3s install script
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version | urlencode }}/install.sh"
+    dest: /usr/local/lib/k3s-install.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install k3s
+  ansible.builtin.command:
+    cmd: /usr/local/lib/k3s-install.sh
+    creates: /usr/local/bin/k3s
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+
+- name: Enable and start k3s
+  ansible.builtin.systemd_service:
+    name: k3s
+    enabled: true
+    state: started
+
+- name: Apply a changed config before checking
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait until the node is Ready
+  ansible.builtin.command:
+    cmd: k3s kubectl wait --for=condition=Ready node --all --timeout=10s
+  register: k3s_ready
+  until: k3s_ready.rc == 0
+  retries: 18
+  delay: 10
+  changed_when: false
+  when: not ansible_check_mode
