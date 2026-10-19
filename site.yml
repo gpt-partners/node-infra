@@ -10,3 +10,4 @@
     # wg-easy creates the bridge that dnsmasq listens on.
     - wg_easy
     - dnsmasq
+    - k3s
