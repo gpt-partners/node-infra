@@ -31,13 +31,23 @@
     owner: root
     group: root
     mode: "0755"
+    # The script differs per release; fetch it again when k3s_version changes.
+    force: true
 
-- name: Install k3s
+- name: Read the installed k3s version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/k3s --version
+  register: k3s_installed
+  changed_when: false
+  failed_when: false
+
+# Installs k3s, or upgrades it in place when k3s_version changed; the script restarts the service.
+- name: Install or upgrade k3s
   ansible.builtin.command:
     cmd: /usr/local/lib/k3s-install.sh
-    creates: /usr/local/bin/k3s
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
+  when: k3s_installed.rc != 0 or k3s_version not in k3s_installed.stdout
 
 - name: Enable and start k3s
   ansible.builtin.systemd_service:

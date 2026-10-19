@@ -139,6 +139,14 @@ previous file is kept as `docker-compose.yml.<timestamp>~`.
 - SSH accepts keys only. Check `ssh -o PasswordAuthentication=no root@<node> true` works before merging
   changes to `roles/base`.
 
+## Updates
+
+[Renovate](https://github.com/renovatebot/renovate) (Mend Renovate App) opens a pull request for every
+new version of what this repository pins: k3s, the cert-manager and Argo CD charts, the wg-easy image
+and the GitHub Actions. Merging it is the release approval; the node applies it like any other change.
+Versions in role defaults carry a `# renovate:` comment that tells Renovate where to look
+(`renovate.json`). The Dependency Dashboard issue lists all pending updates.
+
 ## Local checks
 
 ```bash
