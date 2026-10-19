@@ -28,10 +28,16 @@
     group: root
     mode: "0644"
     backup: true
-  notify: Recreate wg-easy
 
-- name: Apply a changed compose file before checking
-  ansible.builtin.meta: flush_handlers
+# Runs every time, not as a handler: a handler is lost when a run fails after the file changed.
+# Compose recreates the container only when the compose file changed (the tunnel then drops for a
+# few seconds) and starts it if it is not running; otherwise it leaves it alone.
+- name: Start wg-easy
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: /etc/docker/containers/wg-easy
+  register: wg_easy_up
+  changed_when: wg_easy_up.stderr is search('Creat|Recreat|Start')
 
 - name: Check that the wg-easy UI listens on the bridge address
   ansible.builtin.wait_for:

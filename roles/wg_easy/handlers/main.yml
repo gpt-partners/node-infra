@@ -1,7 +1,0 @@
----
-# Recreates the container: the tunnel drops for a few seconds.
-- name: Recreate wg-easy
-  ansible.builtin.command:
-    cmd: docker compose up -d
-    chdir: /etc/docker/containers/wg-easy
-  changed_when: true
