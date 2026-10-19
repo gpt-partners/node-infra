@@ -11,5 +11,13 @@
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
     }
+  ],
+  "packageRules": [
+    {
+      "description": "ansible-core does not run on Python 3.15 yet (AttributeError: dataclasses._is_type). Raise the limit once a release supports it.",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["python"],
+      "allowedVersions": "<3.15"
+    }
   ]
 }
