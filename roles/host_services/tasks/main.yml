@@ -1,0 +1,42 @@
+---
+- name: Require the bridge address from the environment
+  ansible.builtin.assert:
+    that:
+      - node_vpn_bridge_ipv4 | length > 0
+    fail_msg: "Set NODE_INFRA_VPN_BRIDGE_IPV4 in /etc/node-infra/pull.env, see pull.env.example."
+    quiet: true
+
+- name: Create the directory for applied manifests
+  ansible.builtin.file:
+    path: /etc/node-infra/k8s
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Render the host services manifest
+  ansible.builtin.template:
+    src: host-services.yaml.j2
+    dest: /etc/node-infra/k8s/host-services.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Apply the host services manifest
+  ansible.builtin.command:
+    cmd: k3s kubectl apply -f /etc/node-infra/k8s/host-services.yaml
+  register: host_services_apply
+  changed_when: host_services_apply.stdout is search('created|configured')
+  when: not ansible_check_mode
+
+# Leftovers of the former vpn_ui role. Argo CD manages cert-manager, the Traefik config and the
+# wg-easy route now. k3s keeps the resources when a file leaves its manifests directory, so this
+# changes nothing in the cluster. Drop these tasks once the node has run them.
+- name: Remove files of the former vpn_ui role
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/rancher/k3s/server/manifests/node-infra-cert-manager.yaml
+    - /var/lib/rancher/k3s/server/manifests/node-infra-traefik-config.yaml
+    - /etc/node-infra/k8s/vpn-ui.yaml

@@ -29,15 +29,15 @@ This repository used to be called `node-infra`. The names on the node (`/etc/nod
 
 | Belongs here | Does not belong here |
 | --- | --- |
-| Everything below Kubernetes: OS packages and updates, SSH, VPN and DNS services on the host, k3s installation and configuration, backups, and once the bootstrap of Argo CD so the cluster manages itself afterwards. | Kubernetes manifests of apps or platform services. After the bootstrap, Ansible does not touch anything inside the cluster. |
+| Everything below Kubernetes: OS packages and updates, SSH, VPN and DNS services on the host, k3s installation and configuration, backups, and once the bootstrap of Argo CD so the cluster manages itself afterwards. | Kubernetes manifests of apps or platform services. After the bootstrap, Ansible touches only the Services that point to the host (`host_services`). |
 
 ## Status
 
 The playbook manages the `ansible-pull` timer, security updates with automatic reboots, key-only
-SSH, Docker, wg-easy (WireGuard VPN with web UI, in Docker) and
-dnsmasq (split DNS for VPN clients), k3s and the wg-easy web UI behind Traefik with a Let's
-Encrypt certificate, reachable only through the VPN. Argo CD is installed once and follows the private
-`platform` repository from there (app of apps).
+SSH, Docker, wg-easy (WireGuard VPN with web UI, in Docker),
+dnsmasq (split DNS for VPN clients) and k3s. It publishes the wg-easy web UI into the cluster as a
+Service; the route with certificate and the VPN-only rule are in the `platform` repository. Argo CD is
+installed once and follows the private `platform` repository from there (app of apps).
 
 ## Layout
 
@@ -54,7 +54,7 @@ roles/
   wg_easy/             compose file in /etc/docker/containers/wg-easy, UI only on the bridge address
   dnsmasq/             split DNS, listens only on the bridge address
   k3s/                 k3s in a pinned version, API also valid for the bridge address
-  vpn_ui/              cert-manager, Let's Encrypt issuer, Traefik route to the wg-easy UI (VPN only)
+  host_services/       Service and EndpointSlice for the wg-easy UI on the host, nothing else in the cluster
   argocd_bootstrap/    Argo CD, repository credentials from a key file on the node, root application
 ```
 
@@ -72,8 +72,6 @@ roles/
 | `NODE_INFRA_WG_EASY_IPV4`, `NODE_INFRA_WG_EASY_IPV6` | Fixed addresses of the wg-easy container |
 | `NODE_INFRA_DNS_VPN_DOMAINS` | Names that resolve to the bridge address for VPN clients, comma-separated |
 | `NODE_INFRA_DNS_UPSTREAMS` | Resolvers for everything else, comma-separated |
-| `NODE_INFRA_VPN_UI_HOST` | Name of the wg-easy web UI. Public DNS points it to the node (HTTP-01); VPN clients resolve it to the bridge address. |
-| `NODE_INFRA_ACME_EMAIL` | Let's Encrypt account e-mail |
 | `NODE_INFRA_ARGOCD_REPO_URL` | Platform repository Argo CD follows (SSH URL) |
 | `NODE_INFRA_ARGOCD_DEPLOY_KEY_FILE` | File on the node with the read-only deploy key for that repository |
 
@@ -124,7 +122,7 @@ ss -ltn | grep 51821                             # only on the bridge address, n
 k3s kubectl get nodes                            # Ready
 k3s kubectl -n wg-easy get certificate           # wg-easy-tls  READY True
 k3s kubectl -n argocd get applications            # root  Synced  Healthy
-curl -s -o /dev/null -w '%{http_code}\n' "https://$NODE_INFRA_VPN_UI_HOST/"   # 403 from the internet, 200 or 302 through the VPN
+k3s kubectl -n wg-easy get endpointslice         # wg-easy-host  with the bridge address
 ```
 
 A changed compose file recreates the wg-easy container: the tunnel drops for a few seconds. The
@@ -145,7 +143,7 @@ previous file is kept as `docker-compose.yml.<timestamp>~`.
 ## Updates
 
 [Renovate](https://github.com/renovatebot/renovate) (Mend Renovate App) opens a pull request for every
-new version of what this repository pins: k3s, the cert-manager and Argo CD charts, the wg-easy image
+new version of what this repository pins: k3s, the Argo CD chart, the wg-easy image
 and the GitHub Actions. Merging it is the release approval; the node applies it like any other change.
 Versions in role defaults carry a `# renovate:` comment that tells Renovate where to look
 (`renovate.json`). The Dependency Dashboard issue lists all pending updates.

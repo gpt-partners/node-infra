@@ -1,0 +1,37 @@
+# {{ ansible_managed }}
+# Services that run on the host (Docker), outside the cluster, published as a Service without
+# selector so the platform can route to them. Only the server knows their addresses; the routes,
+# certificates and access rules live in the platform repository.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wg-easy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wg-easy
+  namespace: wg-easy
+spec:
+  ports:
+    - name: http
+      port: 51821
+      targetPort: 51821
+      protocol: TCP
+---
+# Argo CD ignores EndpointSlices by default, so this one cannot move to the platform repository.
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: wg-easy-host
+  namespace: wg-easy
+  labels:
+    kubernetes.io/service-name: wg-easy
+addressType: IPv4
+endpoints:
+  - addresses:
+      - {{ node_vpn_bridge_ipv4 }}
+ports:
+  - name: http
+    port: 51821
+    protocol: TCP
