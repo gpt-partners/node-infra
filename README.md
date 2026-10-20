@@ -11,8 +11,11 @@ that applies it, and each layer pulls its own state from `main`:
 | Layer | Repository | Applied by |
 | --- | --- | --- |
 | Tenant apps | one app repo per project (code, Dockerfile, `deploy/` Helm chart) | Argo CD, after CI pushed an image tagged with the commit SHA |
-| Platform | GitOps repo for the cluster (Argo CD, Traefik, cert-manager, monitoring, CI runners, tenant list) | Argo CD, within minutes of a merge |
-| **Server** | **node-infra** (this repo) | `ansible-pull` timer on the node, within 15 minutes of a merge |
+| Platform | **platform** (private, GitOps repo for the cluster: Argo CD, Traefik, cert-manager, monitoring, CI runners, tenant list) | Argo CD, within minutes of a merge |
+| **Server** | **server** (this repo) | `ansible-pull` timer on the node, within 15 minutes of a merge |
+
+This repository used to be called `node-infra`. The names on the node (`/etc/node-infra`, `NODE_INFRA_*`,
+`node-infra-pull.service`) keep that name, so a running node needs no migration.
 
 ## Principles
 
@@ -34,7 +37,7 @@ The playbook manages the `ansible-pull` timer, security updates with automatic r
 SSH, Docker, wg-easy (WireGuard VPN with web UI, in Docker) and
 dnsmasq (split DNS for VPN clients), k3s and the wg-easy web UI behind Traefik with a Let's
 Encrypt certificate, reachable only through the VPN. Argo CD is installed once and follows the private
-platform repository from there (app of apps).
+`platform` repository from there (app of apps).
 
 ## Layout
 
@@ -62,7 +65,7 @@ roles/
 
 | Variable | Meaning |
 | --- | --- |
-| `NODE_INFRA_REPO_URL` | Repository to pull, e.g. `https://github.com/gpt-partners/node-infra.git` |
+| `NODE_INFRA_REPO_URL` | Repository to pull, e.g. `https://github.com/gpt-partners/server.git` |
 | `NODE_INFRA_BRANCH` | Branch to apply, `main` |
 | `NODE_INFRA_VPN_SUBNET_IPV4`, `NODE_INFRA_VPN_SUBNET_IPV6` | Subnets of the wg-easy Docker bridge |
 | `NODE_INFRA_VPN_BRIDGE_IPV4` | Host address on that bridge (first address of the IPv4 subnet). The wg-easy UI and dnsmasq listen only here. |
@@ -84,7 +87,7 @@ apt-get update && apt-get install -y ansible-core git
 
 # Start from the sample in this repo, then fill in the real values.
 install -d -m 0755 /etc/node-infra
-curl -fsSL https://raw.githubusercontent.com/gpt-partners/node-infra/main/pull.env.example \
+curl -fsSL https://raw.githubusercontent.com/gpt-partners/server/main/pull.env.example \
   -o /etc/node-infra/pull.env
 chmod 0644 /etc/node-infra/pull.env
 nano /etc/node-infra/pull.env
@@ -102,7 +105,7 @@ chmod 0600 /etc/node-infra/argocd-deploy-key
 cat /etc/node-infra/argocd-deploy-key.pub
 ```
 
-Add the public key on GitHub to the platform repository: Settings → Deploy keys → Add deploy key,
+Add the public key on GitHub to the `platform` repository: Settings → Deploy keys → Add deploy key,
 title `argocd (read-only)`, **without** write access. The private key never leaves the node.
 
 From then on the timer takes over (first run 5 minutes after boot, then every 15 minutes).

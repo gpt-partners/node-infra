@@ -1,6 +1,6 @@
 # {{ ansible_managed }}
 [Unit]
-Description=Apply node-infra with ansible-pull
+Description=Apply gpt-partners/server with ansible-pull
 Wants=network-online.target
 After=network-online.target
 ConditionPathExists={{ ansible_pull_env_file }}
