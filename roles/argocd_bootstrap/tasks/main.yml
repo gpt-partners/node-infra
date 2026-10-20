@@ -58,6 +58,14 @@
   changed_when: argocd_bootstrap_repo.stdout is search('created|configured')
   when: not ansible_check_mode
 
+- name: Create the directory for applied manifests
+  ansible.builtin.file:
+    path: /etc/node-infra/k8s
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
 - name: Render the root application
   ansible.builtin.template:
     src: root-app.yaml.j2

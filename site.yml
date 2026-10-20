@@ -12,5 +12,5 @@
     - wg_easy
     - dnsmasq
     - k3s
-    - vpn_ui
+    - host_services
     - argocd_bootstrap
