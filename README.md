@@ -1,4 +1,4 @@
-# node-infra
+# server
 
 Server layer of a small self-hosted container platform on k3s. This repository describes everything
 on the node below Kubernetes and is applied with Ansible.
