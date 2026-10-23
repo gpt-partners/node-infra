@@ -1,0 +1,52 @@
+---
+# Pinned. Renovate proposes new releases as pull requests; merging one replaces the binary.
+# renovate: datasource=github-releases depName=restic/restic
+backup_restic_version: 0.19.1
+backup_restic_release_url: "https://github.com/restic/restic/releases/download/v{{ backup_restic_version }}"
+# Release archives are named after the Go architecture.
+backup_restic_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']] }}"
+
+# What is backed up. Everything else is rebuilt from git (this repo and the platform repo).
+backup_paths:
+  # pull.env, the Argo CD deploy key, app secrets, backup.env
+  - /etc/node-infra
+  # wg-easy compose file and its volume: WireGuard keys, clients, settings
+  - /etc/docker/containers/wg-easy
+  - /var/lib/docker/volumes/wg-easy_etc_wireguard/_data
+  # k3s identity: with these and the database snapshot below the cluster can be restored as it was
+  - /var/lib/rancher/k3s/server/token
+  - /var/lib/rancher/k3s/server/tls
+  - /var/lib/rancher/k3s/server/cred
+  # Persistent volumes of the cluster (Grafana's database and later app data)
+  - /var/lib/rancher/k3s/storage
+  # Consistent copies of the SQLite databases below
+  - "{{ backup_staging_dir }}"
+
+# Left out: Prometheus metrics (7 days, not worth it) and live SQLite files, which are backed up
+# through the consistent copies instead.
+backup_exclude:
+  - /var/lib/rancher/k3s/storage/*prometheus*
+  - /var/lib/docker/volumes/wg-easy_etc_wireguard/_data/*.db
+  - /var/lib/docker/volumes/wg-easy_etc_wireguard/_data/*.db-*
+  - /var/lib/rancher/k3s/storage/*_grafana_grafana-pvc/grafana.db
+  - /var/lib/rancher/k3s/storage/*_grafana_grafana-pvc/grafana.db-*
+
+# SQLite databases that are written while running. Each is copied with "sqlite3 .backup" into
+# the staging directory before restic runs, so the backup never holds a half-written file.
+# A glob that matches nothing is skipped with a warning.
+backup_sqlite:
+  - name: k3s-state
+    path: /var/lib/rancher/k3s/server/db/state.db
+  - name: wg-easy
+    path: /var/lib/docker/volumes/wg-easy_etc_wireguard/_data/*.db
+  - name: grafana
+    path: /var/lib/rancher/k3s/storage/*_grafana_grafana-pvc/grafana.db
+
+backup_staging_dir: /var/backups/node-infra
+backup_config_dir: /etc/node-infra/backup
+backup_env_file: /etc/node-infra/backup.env
+
+# Nightly before the automatic reboot window at 04:00; integrity check once a week.
+backup_on_calendar: "*-*-* 03:00:00"
+backup_check_on_calendar: "Sun *-*-* 05:00:00"
+backup_keep: --keep-daily 7 --keep-weekly 4 --keep-monthly 6

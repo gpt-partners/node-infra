@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Check the restic repository (structure and 5% of the data)
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists={{ backup_env_file }}
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ backup_env_file }}
+Environment=RESTIC_CACHE_DIR=/var/cache/restic
+CacheDirectory=restic
+ExecStart=/usr/local/bin/restic check --read-data-subset=5%%
+Nice=10
+IOSchedulingClass=idle

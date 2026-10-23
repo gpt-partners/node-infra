@@ -1,0 +1,112 @@
+---
+# restic from the official binary release, as in
+# https://restic.readthedocs.io/en/stable/020_installation.html#official-binaries
+# (checksum from SHA256SUMS). Updates come from Renovate, not from "restic self-update".
+- name: Install the tools the backup needs
+  ansible.builtin.apt:
+    name:
+      - bzip2
+      - sqlite3
+    state: present
+    lock_timeout: 600
+
+- name: Read the installed restic version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/restic version
+  register: backup_restic_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install or upgrade restic
+  when: backup_restic_installed.rc != 0 or ('restic ' ~ backup_restic_version ~ ' ') not in backup_restic_installed.stdout
+  block:
+    - name: Download the restic release and verify its checksum
+      ansible.builtin.get_url:
+        url: "{{ backup_restic_release_url }}/restic_{{ backup_restic_version }}_linux_{{ backup_restic_arch }}.bz2"
+        checksum: "sha256:{{ backup_restic_release_url }}/SHA256SUMS"
+        dest: "/tmp/restic_{{ backup_restic_version }}_linux_{{ backup_restic_arch }}.bz2"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Unpack restic
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail;
+          bunzip2 -c /tmp/restic_{{ backup_restic_version }}_linux_{{ backup_restic_arch }}.bz2
+          > /usr/local/bin/restic.new
+          && chmod 0755 /usr/local/bin/restic.new
+          && mv /usr/local/bin/restic.new /usr/local/bin/restic
+        executable: /bin/bash
+      changed_when: true
+
+  always:
+    - name: Remove the restic download
+      ansible.builtin.file:
+        path: "/tmp/restic_{{ backup_restic_version }}_linux_{{ backup_restic_arch }}.bz2"
+        state: absent
+
+- name: Create the backup config directory
+  ansible.builtin.file:
+    path: "{{ backup_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write what to back up
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ backup_config_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop:
+    - paths.txt
+    - exclude.txt
+    - sqlite.txt
+
+- name: Install the backup script
+  ansible.builtin.template:
+    src: node-infra-backup.sh.j2
+    dest: /usr/local/sbin/node-infra-backup
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the backup units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - node-infra-backup.service
+    - node-infra-backup.timer
+    - node-infra-backup-check.service
+    - node-infra-backup-check.timer
+  notify: Reload systemd
+
+- name: Apply unit changes before enabling the timers
+  ansible.builtin.meta: flush_handlers
+
+- name: Check for the backup credentials
+  ansible.builtin.stat:
+    path: "{{ backup_env_file }}"
+  register: backup_env
+
+# Without credentials the timers stay off; the run does not fail. See README, "Backups".
+- name: Enable the backup timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: "{{ backup_env.stat.exists }}"
+    state: "{{ 'started' if backup_env.stat.exists else 'stopped' }}"
+  loop:
+    - node-infra-backup.timer
+    - node-infra-backup-check.timer
+
+- name: Remind that backups are off
+  ansible.builtin.debug:
+    msg: "Backups are off: {{ backup_env_file }} is missing. See README, section Backups."
+  when: not backup_env.stat.exists

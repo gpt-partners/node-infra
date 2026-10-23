@@ -57,6 +57,7 @@ roles/
   k3s/                 k3s in a pinned version, API also valid for the bridge address
   host_services/       Service and EndpointSlice for the wg-easy UI on the host, nothing else in the cluster
   argocd_bootstrap/    first install of Argo CD, repository credentials from a key file, root application
+  backup/              restic in a pinned version, nightly backup to Backblaze B2, weekly check
 ```
 
 ## Environment on the node
@@ -128,6 +129,34 @@ k3s kubectl -n wg-easy get endpointslice         # wg-easy-host  with the bridge
 
 A changed compose file recreates the wg-easy container: the tunnel drops for a few seconds. The
 previous file is kept as `docker-compose.yml.<timestamp>~`.
+
+## Backups
+
+Nightly at 03:00 (before the reboot window) `node-infra-backup.timer` runs restic. It copies the
+SQLite databases (k3s, wg-easy, Grafana) consistently with `sqlite3 .backup`, backs up the paths
+listed in [`roles/backup/defaults/main.yml`](roles/backup/defaults/main.yml) encrypted to Backblaze
+B2 and keeps 7 daily, 4 weekly and 6 monthly snapshots. On Sundays `node-infra-backup-check.timer`
+verifies the repository and 5 % of the data. Everything else is rebuilt from git.
+
+What is backed up is configured in `roles/backup/defaults/main.yml` (`backup_paths`,
+`backup_exclude`, `backup_sqlite`); on the node it ends up in `/etc/node-infra/backup/`.
+
+Set up once:
+
+1. B2: a private bucket, lifecycle rule "Keep only the last version of the file", and an
+   application key limited to that bucket with read and write access.
+2. On the node: `/etc/node-infra/backup.env` from [`backup.env.example`](backup.env.example),
+   mode 0600. Store `RESTIC_PASSWORD` in a password manager as well.
+3. The next run enables the timers. The first backup creates the repository.
+
+```bash
+systemctl start node-infra-backup.service && journalctl -u node-infra-backup.service -n 30
+systemctl list-timers 'node-infra-backup*'
+set -a; . /etc/node-infra/backup.env; set +a
+restic snapshots                                    # list
+restic ls latest | head                             # look inside
+restic restore latest --target /tmp/restore --include /etc/node-infra   # restore into a scratch dir
+```
 
 ## Limits
 

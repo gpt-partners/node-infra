@@ -14,3 +14,4 @@
     - k3s
     - host_services
     - argocd_bootstrap
+    - backup
