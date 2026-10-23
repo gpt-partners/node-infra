@@ -76,6 +76,7 @@ roles/
 | `NODE_INFRA_DNS_UPSTREAMS` | Resolvers for everything else, comma-separated |
 | `NODE_INFRA_ARGOCD_REPO_URL` | Platform repository Argo CD follows (SSH URL) |
 | `NODE_INFRA_ARGOCD_DEPLOY_KEY_FILE` | File on the node with the read-only deploy key for that repository |
+| `NODE_INFRA_ARGOCD_GITHUB_APP_ID`, `NODE_INFRA_ARGOCD_GITHUB_APP_INSTALLATION_ID`, `NODE_INFRA_ARGOCD_GITHUB_APP_KEY_FILE` | Optional, all three or none: GitHub App (Contents: read only) with which Argo CD reads the app repositories of the same account over HTTPS |
 
 The playbook stops with a clear error if the file or a value is missing. Add new values to the file
 on the node before merging the pull request that needs them.

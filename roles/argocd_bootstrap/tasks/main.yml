@@ -95,6 +95,45 @@
   changed_when: argocd_bootstrap_repo.stdout is search('created|configured')
   when: not ansible_check_mode
 
+- name: Check the GitHub App key file
+  ansible.builtin.stat:
+    path: "{{ node_argocd_github_app_key_file }}"
+  register: argocd_bootstrap_app_key
+  when: node_argocd_github_app_key_file | length > 0
+
+- name: Require all GitHub App values together
+  ansible.builtin.assert:
+    that:
+      - node_argocd_github_app_id | length > 0
+      - node_argocd_github_app_installation_id | length > 0
+      - argocd_bootstrap_app_key.stat.exists | default(false)
+    fail_msg: >-
+      Set NODE_INFRA_ARGOCD_GITHUB_APP_ID, NODE_INFRA_ARGOCD_GITHUB_APP_INSTALLATION_ID and
+      NODE_INFRA_ARGOCD_GITHUB_APP_KEY_FILE together (the key file must exist), or none of them.
+    quiet: true
+  when: node_argocd_github_app_id | length > 0 or node_argocd_github_app_installation_id | length > 0
+    or node_argocd_github_app_key_file | length > 0
+
+# Credential template: Argo CD uses it for every repository below this URL. The private key goes
+# from the file straight into the cluster.
+- name: Store the GitHub App credentials in the cluster
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      k3s kubectl -n argocd create secret generic repo-creds-github
+      --from-literal=type=git
+      --from-literal=url={{ argocd_bootstrap_github_url | quote }}
+      --from-literal=githubAppID={{ node_argocd_github_app_id | quote }}
+      --from-literal=githubAppInstallationID={{ node_argocd_github_app_installation_id | quote }}
+      --from-file=githubAppPrivateKey={{ node_argocd_github_app_key_file | quote }}
+      --dry-run=client -o yaml
+      | k3s kubectl label --local -f - argocd.argoproj.io/secret-type=repo-creds -o yaml
+      | k3s kubectl apply -f -
+    executable: /bin/bash
+  register: argocd_bootstrap_app_creds
+  changed_when: argocd_bootstrap_app_creds.stdout is search('created|configured')
+  when: node_argocd_github_app_id | length > 0 and not ansible_check_mode
+
 - name: Create the directory for applied manifests
   ansible.builtin.file:
     path: /etc/node-infra/k8s
