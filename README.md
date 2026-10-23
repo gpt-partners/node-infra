@@ -55,6 +55,7 @@ roles/
   wg_easy/             compose file in /etc/docker/containers/wg-easy, UI only on the bridge address
   dnsmasq/             split DNS, listens only on the bridge address
   k3s/                 k3s in a pinned version, API also valid for the bridge address
+  helm/                Helm CLI in a pinned version, only for looking at charts by hand
   host_services/       Service and EndpointSlice for the wg-easy UI on the host, nothing else in the cluster
   argocd_bootstrap/    first install of Argo CD, repository credentials from a key file, root application
 ```
@@ -121,6 +122,7 @@ dig +short @"$NODE_INFRA_VPN_BRIDGE_IPV4" "${NODE_INFRA_DNS_VPN_DOMAINS%%,*}"   
 dig +short @"$NODE_INFRA_VPN_BRIDGE_IPV4" example.com                         # a public address
 ss -ltn | grep 51821                             # only on the bridge address, never 0.0.0.0
 k3s kubectl get nodes                            # Ready
+helm version                                     # the pinned version (login shell: KUBECONFIG is set)
 k3s kubectl -n wg-easy get certificate           # wg-easy-tls  READY True
 k3s kubectl -n argocd get applications            # root  Synced  Healthy
 k3s kubectl -n wg-easy get endpointslice         # wg-easy-host  with the bridge address
@@ -144,7 +146,7 @@ previous file is kept as `docker-compose.yml.<timestamp>~`.
 ## Updates
 
 [Renovate](https://github.com/renovatebot/renovate) (Mend Renovate App) opens a pull request for every
-new version of what this repository pins: k3s, the wg-easy image
+new version of what this repository pins: k3s, Helm, the wg-easy image
 and the GitHub Actions. Merging it is the release approval; the node applies it like any other change.
 Versions in role defaults carry a `# renovate:` comment that tells Renovate where to look
 (`renovate.json`). The Dependency Dashboard issue lists all pending updates.

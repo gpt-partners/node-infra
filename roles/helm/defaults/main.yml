@@ -1,0 +1,6 @@
+---
+# Pinned. Renovate proposes new releases as pull requests; merging one replaces the binary.
+# renovate: datasource=github-releases depName=helm/helm
+helm_version: v4.3.1
+# Release archives are named after the Go architecture.
+helm_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']] }}"

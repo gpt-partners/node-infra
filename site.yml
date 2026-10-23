@@ -12,5 +12,6 @@
     - wg_easy
     - dnsmasq
     - k3s
+    - helm
     - host_services
     - argocd_bootstrap

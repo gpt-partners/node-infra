@@ -1,0 +1,49 @@
+---
+# Helm CLI from the binary release, as in https://helm.sh/docs/intro/install/ ("From the Binary
+# Releases"). Only for looking at charts by hand (helm show values, helm template). Argo CD
+# installs and upgrades all charts; do not install anything with helm on the node.
+- name: Read the installed Helm version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/helm version --template {{ '{{.Version}}' | quote }}
+  register: helm_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install or upgrade Helm
+  when: helm_installed.rc != 0 or helm_installed.stdout != helm_version
+  block:
+    - name: Download the Helm release and verify its checksum
+      ansible.builtin.get_url:
+        url: "https://get.helm.sh/helm-{{ helm_version }}-linux-{{ helm_arch }}.tar.gz"
+        checksum: "sha256:https://get.helm.sh/helm-{{ helm_version }}-linux-{{ helm_arch }}.tar.gz.sha256sum"
+        dest: "/tmp/helm-{{ helm_version }}-linux-{{ helm_arch }}.tar.gz"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Unpack the helm binary
+      ansible.builtin.unarchive:
+        src: "/tmp/helm-{{ helm_version }}-linux-{{ helm_arch }}.tar.gz"
+        dest: /usr/local/bin
+        remote_src: true
+        include:
+          - "linux-{{ helm_arch }}/helm"
+        extra_opts:
+          - --strip-components=1
+        owner: root
+        group: root
+        mode: "0755"
+
+  always:
+    - name: Remove the Helm release archive
+      ansible.builtin.file:
+        path: "/tmp/helm-{{ helm_version }}-linux-{{ helm_arch }}.tar.gz"
+        state: absent
+
+- name: Point helm and kubectl in login shells at the local k3s
+  ansible.builtin.copy:
+    src: k3s-kubeconfig.sh
+    dest: /etc/profile.d/k3s-kubeconfig.sh
+    owner: root
+    group: root
+    mode: "0644"
