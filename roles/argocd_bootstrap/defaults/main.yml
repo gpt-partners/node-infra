@@ -2,5 +2,9 @@
 # Chart version for the first install only. Afterwards Argo CD upgrades itself from
 # platform/argocd.yaml in the platform repository, which Renovate keeps current.
 argocd_bootstrap_chart_version: 10.11.1
+# Credential template for the GitHub App: applies to every https://github.com/<account>/... repo.
+# The account is the one of the platform repository.
+argocd_bootstrap_github_url: >-
+  https://github.com/{{ node_argocd_repo_url | regex_replace('^.*github[.]com[:/]', '') | split('/') | first }}
 # Directory in the platform repo with the Application manifests (app of apps).
 argocd_bootstrap_root_path: platform

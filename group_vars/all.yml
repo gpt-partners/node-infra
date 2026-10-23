@@ -17,3 +17,9 @@ node_dns_upstreams: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_DNS_UPSTREAMS'
 # Platform repository that Argo CD follows (SSH URL) and the file with its read-only deploy key.
 node_argocd_repo_url: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_ARGOCD_REPO_URL') }}"
 node_argocd_deploy_key_file: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_ARGOCD_DEPLOY_KEY_FILE') }}"
+
+# Optional GitHub App (Contents: read only) with which Argo CD reads the app repositories of the
+# same GitHub account over HTTPS. All three empty: no app credentials.
+node_argocd_github_app_id: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_ARGOCD_GITHUB_APP_ID') }}"
+node_argocd_github_app_installation_id: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_ARGOCD_GITHUB_APP_INSTALLATION_ID') }}"
+node_argocd_github_app_key_file: "{{ lookup('ansible.builtin.env', 'NODE_INFRA_ARGOCD_GITHUB_APP_KEY_FILE') }}"
