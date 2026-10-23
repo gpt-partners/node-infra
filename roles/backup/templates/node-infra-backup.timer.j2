@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Nightly restic backup of the node
+
+[Timer]
+OnCalendar={{ backup_on_calendar }}
+# Catch up after the node was off at the scheduled time.
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

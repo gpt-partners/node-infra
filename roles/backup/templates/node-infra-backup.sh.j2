@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Nightly backup with restic. Repository and credentials come from {{ backup_env_file }}.
+set -euo pipefail
+shopt -s nullglob
+
+config={{ backup_config_dir }}
+staging={{ backup_staging_dir }}
+keep="{{ backup_keep }}"
+{% raw %}
+
+install -d -m 0700 "$staging/sqlite"
+rm -f "$staging"/sqlite/*
+
+# Consistent copies of the SQLite databases.
+while read -r name pattern; do
+  [[ -z "$name" || "$name" == \#* ]] && continue
+  files=()
+  # Unquoted on purpose: the pattern may be a glob. A plain path stays as it is, even if missing.
+  # shellcheck disable=SC2206
+  for file in $pattern; do
+    [[ -f "$file" ]] && files+=("$file")
+  done
+  if (( ${#files[@]} == 0 )); then
+    echo "warning: no database matches $pattern ($name), skipped"
+    continue
+  fi
+  i=0
+  for file in "${files[@]}"; do
+    target="$staging/sqlite/$name.db"
+    (( i > 0 )) && target="$staging/sqlite/$name-$i.db"
+    sqlite3 "$file" ".backup '$target'"
+    echo "copied $file -> $target"
+    i=$((i + 1))
+  done
+done < "$config/sqlite.txt"
+
+# First run: create the repository. "cat config" fails only when it does not exist yet
+# (or is unreachable, in which case init fails as well and the run stops).
+if ! restic cat config >/dev/null 2>&1; then
+  echo "repository not found, initialising"
+  restic init
+fi
+
+restic backup --files-from "$config/paths.txt" --exclude-file "$config/exclude.txt" \
+  --tag nightly --one-file-system
+# Unquoted on purpose: several options.
+# shellcheck disable=SC2086
+restic forget --tag nightly --prune $keep
+{% endraw %}

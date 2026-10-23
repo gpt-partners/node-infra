@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Weekly check of the restic repository
+
+[Timer]
+OnCalendar={{ backup_check_on_calendar }}
+Persistent=true
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target
