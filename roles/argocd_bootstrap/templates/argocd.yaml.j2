@@ -1,5 +1,6 @@
 # {{ ansible_managed }}
-# Argo CD itself is installed and upgraded from here (k3s helm-controller), not by Argo CD.
+# First install of Argo CD only (k3s helm-controller). The role hands the chart over right after
+# Argo CD is ready; its settings live in platform/argocd.yaml in the platform repository.
 apiVersion: helm.cattle.io/v1
 kind: HelmChart
 metadata:
@@ -11,35 +12,3 @@ spec:
   version: {{ argocd_bootstrap_chart_version }}
   targetNamespace: argocd
   createNamespace: true
-  valuesContent: |-
-    configs:
-      cm:
-        # UI only through kubectl port-forward; no anonymous access, no exec into pods.
-        users.anonymous.enabled: false
-        exec.enabled: false
-    # Single user (admin) for now; no SSO, no notifications.
-    dex:
-      enabled: false
-    notifications:
-      enabled: false
-    # Requests and limits keep Argo CD from crowding out the apps on a single node.
-    controller:
-      resources:
-        requests: { cpu: 100m, memory: 256Mi }
-        limits: { memory: 768Mi }
-    repoServer:
-      resources:
-        requests: { cpu: 50m, memory: 128Mi }
-        limits: { memory: 512Mi }
-    server:
-      resources:
-        requests: { cpu: 50m, memory: 64Mi }
-        limits: { memory: 256Mi }
-    redis:
-      resources:
-        requests: { cpu: 20m, memory: 32Mi }
-        limits: { memory: 128Mi }
-    applicationSet:
-      resources:
-        requests: { cpu: 20m, memory: 32Mi }
-        limits: { memory: 128Mi }

@@ -18,14 +18,24 @@
     fail_msg: "{{ node_argocd_deploy_key_file }} is missing. Create the read-only deploy key as described in README.md."
     quiet: true
 
-# k3s installs the chart by itself from its manifests directory.
-- name: Install the Argo CD chart
+# Argo CD manages itself from the platform repository (platform/argocd.yaml). The server installs
+# it only when it is missing, e.g. on a new node, and then hands it over: the k3s HelmChart is
+# released without uninstalling the chart.
+- name: Check whether Argo CD is installed
+  ansible.builtin.command:
+    cmd: k3s kubectl -n argocd get deployment argocd-server
+  register: argocd_bootstrap_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install Argo CD (first run only)
   ansible.builtin.template:
     src: argocd.yaml.j2
     dest: /var/lib/rancher/k3s/server/manifests/node-infra-argocd.yaml
     owner: root
     group: root
     mode: "0600"
+  when: argocd_bootstrap_installed.rc != 0
 
 - name: Wait until Argo CD is ready
   ansible.builtin.command:
@@ -40,6 +50,33 @@
     - deployment/argocd-server
     - statefulset/argocd-application-controller
   when: not ansible_check_mode
+
+# Remove the file first: k3s would recreate the HelmChart from it on its next start.
+- name: Remove the Argo CD chart file from the k3s manifests directory
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests/node-infra-argocd.yaml
+    state: absent
+
+- name: Check for the k3s HelmChart of Argo CD
+  ansible.builtin.command:
+    cmd: k3s kubectl -n kube-system get helmchart argocd
+  register: argocd_bootstrap_helmchart
+  changed_when: false
+  failed_when: false
+
+# unmanaged: the helm-controller ignores the chart; without the finalizer, deleting it does not
+# run helm uninstall. The Helm release secrets are only needed by helm, not by Argo CD.
+- name: Hand Argo CD over to itself
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      k3s kubectl -n kube-system annotate --overwrite helmchart argocd helmcharts.helm.cattle.io/unmanaged=true
+      && k3s kubectl -n kube-system patch helmchart argocd --type=merge -p '{"metadata":{"finalizers":null}}'
+      && k3s kubectl -n kube-system delete helmchart argocd
+      && k3s kubectl -n argocd delete secret -l owner=helm,name=argocd
+    executable: /bin/bash
+  when: argocd_bootstrap_helmchart.rc == 0 and not ansible_check_mode
+  changed_when: true
 
 # The private key goes from the file straight into the cluster; it is never written elsewhere.
 - name: Store the repository credentials in the cluster

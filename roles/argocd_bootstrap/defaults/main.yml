@@ -1,6 +1,6 @@
 ---
-# Chart argo/argo-cd 10.9.4 = Argo CD v3.5.3, the version the previous node ran.
-# renovate: datasource=helm registryUrl=https://argoproj.github.io/argo-helm depName=argo-cd
+# Chart version for the first install only. Afterwards Argo CD upgrades itself from
+# platform/argocd.yaml in the platform repository, which Renovate keeps current.
 argocd_bootstrap_chart_version: 10.11.1
 # Directory in the platform repo with the Application manifests (app of apps).
 argocd_bootstrap_root_path: platform

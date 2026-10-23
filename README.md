@@ -37,7 +37,8 @@ The playbook manages the `ansible-pull` timer, security updates with automatic r
 SSH, Docker, wg-easy (WireGuard VPN with web UI, in Docker),
 dnsmasq (split DNS for VPN clients) and k3s. It publishes the wg-easy web UI into the cluster as a
 Service; the route with certificate and the VPN-only rule are in the `platform` repository. Argo CD is
-installed once and follows the private `platform` repository from there (app of apps).
+installed once, then manages itself and everything else from the private `platform` repository
+(app of apps, `platform/argocd.yaml`).
 
 ## Layout
 
@@ -55,7 +56,7 @@ roles/
   dnsmasq/             split DNS, listens only on the bridge address
   k3s/                 k3s in a pinned version, API also valid for the bridge address
   host_services/       Service and EndpointSlice for the wg-easy UI on the host, nothing else in the cluster
-  argocd_bootstrap/    Argo CD, repository credentials from a key file on the node, root application
+  argocd_bootstrap/    first install of Argo CD, repository credentials from a key file, root application
 ```
 
 ## Environment on the node
@@ -143,7 +144,7 @@ previous file is kept as `docker-compose.yml.<timestamp>~`.
 ## Updates
 
 [Renovate](https://github.com/renovatebot/renovate) (Mend Renovate App) opens a pull request for every
-new version of what this repository pins: k3s, the Argo CD chart, the wg-easy image
+new version of what this repository pins: k3s, the wg-easy image
 and the GitHub Actions. Merging it is the release approval; the node applies it like any other change.
 Versions in role defaults carry a `# renovate:` comment that tells Renovate where to look
 (`renovate.json`). The Dependency Dashboard issue lists all pending updates.
