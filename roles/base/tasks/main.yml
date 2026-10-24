@@ -84,3 +84,50 @@
   ansible.builtin.user:
     name: root
     shell: /usr/bin/zsh
+
+# The size only applies when the file is created; to change it, swapoff and delete the file first.
+- name: Create the swap file
+  ansible.builtin.command:
+    cmd: fallocate -l {{ base_swap_size }} {{ base_swap_file }}
+    creates: "{{ base_swap_file }}"
+  register: base_swap_created
+
+- name: Restrict the swap file to root
+  ansible.builtin.file:
+    path: "{{ base_swap_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Format the new swap file
+  ansible.builtin.command:
+    cmd: mkswap {{ base_swap_file }}
+  when: base_swap_created is changed  # noqa: no-handler
+  changed_when: true
+
+- name: Check the active swap
+  ansible.builtin.command:
+    cmd: swapon --show=NAME --noheadings
+  register: base_swap_active
+  changed_when: false
+
+- name: Turn on the swap file
+  ansible.builtin.command:
+    cmd: swapon {{ base_swap_file }}
+  when: base_swap_file not in base_swap_active.stdout_lines
+  changed_when: true
+
+- name: Turn on the swap file at boot
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^{{ base_swap_file }}\s'
+    line: "{{ base_swap_file }} none swap sw 0 0"
+
+- name: Swap only under memory pressure
+  ansible.builtin.template:
+    src: 60-node-infra-swap.conf.j2
+    dest: /etc/sysctl.d/60-node-infra-swap.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply sysctl settings

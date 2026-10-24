@@ -1,3 +1,9 @@
 ---
 # Server time (UTC unless changed). The node and everything on it is down for a minute or two.
 base_reboot_time: "04:00"
+# Swap file as a buffer against memory peaks (fallocate size, e.g. 2G). Kubernetes pods do not
+# swap (kubelet default NoSwap); k3s itself, Docker/wg-easy and the host services can.
+base_swap_size: 2G
+base_swap_file: /swapfile
+# Swap only under real memory pressure.
+base_swappiness: 10
