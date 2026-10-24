@@ -18,6 +18,31 @@
     fail_msg: "{{ ansible_pull_env_file }} is missing. Create it by hand as described in README.md."
     quiet: true
 
+# node-exporter (kube-prometheus-stack in the platform repo) reads *.prom files from here.
+- name: Create the textfile collector directory
+  ansible.builtin.file:
+    path: /var/lib/node_exporter/textfile
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the textfile helper
+  ansible.builtin.copy:
+    src: node-infra-textfile
+    dest: /usr/local/sbin/node-infra-textfile
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the result hook of the ansible-pull service
+  ansible.builtin.template:
+    src: node-infra-pull-result.j2
+    dest: /usr/local/sbin/node-infra-pull-result
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Install the ansible-pull service and timer
   ansible.builtin.template:
     src: "{{ item }}.j2"

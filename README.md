@@ -128,6 +128,10 @@ k3s kubectl -n argocd get applications            # root  Synced  Healthy
 k3s kubectl -n wg-easy get endpointslice         # wg-easy-host  with the bridge address
 ```
 
+Monitoring: after each successful run `node-infra-pull.service` and `node-infra-backup.service` write
+`node_infra_{pull,backup}_last_success_timestamp_seconds` to `/var/lib/node_exporter/textfile/`.
+node-exporter (platform repo) exports them; Alertmanager mails when they get too old.
+
 A changed compose file recreates the wg-easy container: the tunnel drops for a few seconds. The
 previous file is kept as `docker-compose.yml.<timestamp>~`.
 
@@ -161,8 +165,9 @@ restic restore latest --target /tmp/restore --include /etc/node-infra   # restor
 
 ## Limits
 
-- `--only-if-changed`: a run that fails is not retried until the next commit on `main`. To retry
-  without a commit: `rm -rf /var/lib/node-infra/checkout && systemctl start node-infra-pull.service`.
+- `--only-if-changed`: runs without a new commit on `main` do nothing. After a failed run the service
+  removes the checkout, so the next run (15 minutes later) applies the playbook again. Force a run
+  now: `rm -rf /var/lib/node-infra/checkout && systemctl start node-infra-pull.service`.
 - Whoever can change `main` gets root on the node. Protect `main` (ruleset: pull request required, no
   force push, no bypass for bots).
 - Stop applying changes: `systemctl disable --now node-infra-pull.timer`.

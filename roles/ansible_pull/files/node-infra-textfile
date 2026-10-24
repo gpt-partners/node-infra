@@ -1,0 +1,17 @@
+#!/bin/sh
+# Managed by gpt-partners/server (roles/ansible_pull) — edit in git, not on the node.
+# Records "now" as node_infra_<name>_last_success_timestamp_seconds for node-exporter's textfile
+# collector (Prometheus alerts when it gets too old).
+#   node-infra-textfile <name>
+set -eu
+name="$1"
+dir=/var/lib/node_exporter/textfile
+metric="node_infra_${name}_last_success_timestamp_seconds"
+tmp="$dir/.node_infra_${name}.prom.$$"
+{
+  echo "# HELP $metric Time of the last successful $name run."
+  echo "# TYPE $metric gauge"
+  echo "$metric $(date +%s)"
+} > "$tmp"
+chmod 0644 "$tmp"
+mv "$tmp" "$dir/node_infra_${name}.prom"

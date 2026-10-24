@@ -11,3 +11,5 @@ Type=oneshot
 EnvironmentFile={{ ansible_pull_env_file }}
 # --only-if-changed: the playbook runs only when the branch has a new commit.
 ExecStart=/usr/bin/ansible-pull --only-if-changed --clean --url ${NODE_INFRA_REPO_URL} --checkout ${NODE_INFRA_BRANCH} --directory {{ ansible_pull_checkout_dir }} {{ ansible_pull_playbook }}
+# Records success for monitoring; after a failure forces the next run to apply again.
+ExecStopPost=/usr/local/sbin/node-infra-pull-result
