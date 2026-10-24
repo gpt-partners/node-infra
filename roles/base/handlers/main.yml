@@ -5,3 +5,8 @@
   ansible.builtin.command:  # noqa: command-instead-of-module
     cmd: systemctl try-reload-or-restart ssh.service
   changed_when: true
+
+- name: Apply sysctl settings
+  ansible.builtin.command:
+    cmd: sysctl --system
+  changed_when: true
