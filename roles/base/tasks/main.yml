@@ -55,3 +55,32 @@
       - "'permitrootlogin without-password' in base_sshd.stdout_lines or 'permitrootlogin prohibit-password' in base_sshd.stdout_lines"
     fail_msg: "sshd still allows password logins; check /etc/ssh/sshd_config and /etc/ssh/sshd_config.d/."
     quiet: true
+
+- name: Install shell tools
+  ansible.builtin.apt:
+    # git is needed by Oh My Zsh.
+    name: [vim, tmux, zsh, git]
+    state: present
+    cache_valid_time: 86400
+    lock_timeout: 600
+
+# Oh My Zsh with its official installer (https://ohmyz.sh/#install). It keeps itself up to date.
+- name: Download the Oh My Zsh installer
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+    dest: /usr/local/share/oh-my-zsh-install.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Oh My Zsh for root
+  ansible.builtin.command:
+    cmd: sh /usr/local/share/oh-my-zsh-install.sh --unattended
+    creates: /root/.oh-my-zsh
+  environment:
+    HOME: /root
+
+- name: Use zsh as root's login shell
+  ansible.builtin.user:
+    name: root
+    shell: /usr/bin/zsh

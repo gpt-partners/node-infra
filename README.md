@@ -50,7 +50,7 @@ pull.env.example       sample for /etc/node-infra/pull.env on the node
 group_vars/all.yml     maps the environment variables to Ansible variables
 roles/
   ansible_pull/        installs ansible-core and git, the service and the timer
-  base/                daily security updates with automatic reboot, SSH with keys only
+  base/                daily security updates with automatic reboot, SSH with keys only, vim, tmux and zsh with Oh My Zsh for root
   docker/              Docker and the compose plugin from the Ubuntu archive
   wg_easy/             compose file in /etc/docker/containers/wg-easy, UI only on the bridge address
   dnsmasq/             split DNS, listens only on the bridge address
