@@ -47,4 +47,7 @@ restic backup --files-from "$config/paths.txt" --exclude-file "$config/exclude.t
 # Unquoted on purpose: several options.
 # shellcheck disable=SC2086
 restic forget --tag nightly --prune $keep
+
+# For the BackupTooOld alert (node-exporter textfile collector).
+/usr/local/sbin/node-infra-textfile backup
 {% endraw %}

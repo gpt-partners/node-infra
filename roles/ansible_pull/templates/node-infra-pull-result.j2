@@ -1,0 +1,12 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# ExecStopPost of node-infra-pull.service. systemd sets SERVICE_RESULT.
+# Success: record the time for the AnsiblePullFailing alert.
+# Failure: drop the checkout, so that the next run applies the playbook again instead of
+# skipping it with --only-if-changed.
+set -eu
+if [ "${SERVICE_RESULT:-}" = success ]; then
+  /usr/local/sbin/node-infra-textfile pull
+else
+  rm -rf {{ ansible_pull_checkout_dir }}
+fi
